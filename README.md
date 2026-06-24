@@ -669,23 +669,5 @@ chore: build, config, dependencies
 ## Licença
 
 Distribuído sob licença MIT. Veja [LICENSE](LICENSE) para mais informações.
-
----
-
-## Linha do Tempo do Projeto
-
-```
-chore: initial project setup with Spring Boot 3.5.15 and Maven Wrapper
-feat: add multi-environment configuration (default, dev, test, prod)
-feat: add main application class with retry and scheduling support
-feat: add JPA entities and enums for domain model
-feat: add Spring Data JPA repositories
-feat: add request/response DTOs and entity mappers
-feat: add custom exceptions and global exception handler
-feat: add JWT authentication and security configuration
-feat: add business services layer
-feat: add commission and shipping strategies with factories
-feat: add REST controllers with role-based access
-test: add unit, controller, and integration tests
 docs: add README with API documentation and Docker Compose for MySQL 8.0
 ```
