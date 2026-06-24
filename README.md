@@ -1,29 +1,45 @@
-# Marketplace API
+<p align="center">
+  <h1 align="center">Marketplace API</h1>
+  <p align="center">
+    REST API para marketplace multi-vendedor com Spring Boot
+    <br />
+    <a href="#instalação"><strong>Instalação »</strong></a>
+    <br />
+    <br />
+    <a href="#endpoints">Endpoints</a>
+    ·
+    <a href="#testes">Testes</a>
+    ·
+    <a href="#contribuição">Contribuição</a>
+  </p>
+</p>
 
-REST API para um marketplace multi-vendedor construída com Spring Boot. Gerencia cadastro de produtos, pedidos, pagamentos, comissões e autenticação JWT com controle de acesso por perfil.
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 17"/>
+  <img src="https://img.shields.io/badge/Spring_Boot-3.5.15-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Boot 3.5"/>
+  <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL 8.0"/>
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"/>
+</p>
 
-**Banco de dados:** MySQL 8.0 via Docker (produção) | H2 (desenvolvimento/testes)
+---
 
-## Sumário
+## Sobre o Projeto
 
-- [Stack Tecnológica](#stack-tecnológica)
-- [Pré-requisitos](#pré-requisitos)
-- [Setup](#setup)
-- [Execução](#execução)
-- [Perfis de Ambiente](#perfis-de-ambiente)
-- [Autenticação](#autenticação)
-- [API - Endpoints](#api---endpoints)
-  - [Auth](#auth-api-auth)
-  - [Produtos](#produtos-api-products)
-  - [Pedidos](#pedidos-api-orders)
-  - [Pagamentos](#pagamentos-api-payments)
-- [Formato de Erro](#formato-de-erro)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Modelagem do Banco](#modelagem-do-banco)
-- [Padrões de Projeto](#padrões-de-projeto)
-- [Testes](#testes)
-- [Docker](#docker)
-- [Linha do Tempo do Projeto](#linha-do-tempo-do-projeto)
+API backend para um marketplace onde **vendedores** cadastram produtos, **compradores** criam pedidos e realizam pagamentos, e as **comissões** são distribuídas proporcionalmente entre os vendedores de cada pedido.
+
+**Funcionalidades principais:**
+
+- Autenticação JWT com refresh token rotation
+- CRUD de produtos com busca por nome
+- Criação e cancelamento de pedidos com reserva de estoque
+- Processamento de pagamentos
+- Cálculo de frete por estratégia (Express, Econômico, Sedex, PAC)
+- Distribuição proporcional de comissões entre vendedores
+- Três perfis de acesso: BUYER, SELLER, ADMIN
+- Lock otimista com retry automático para concorrência de estoque
+
+**Stack:** Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, MySQL 8.0 (Docker), H2 (dev/test), JWT, Swagger.
 
 ---
 
@@ -32,13 +48,13 @@ REST API para um marketplace multi-vendedor construída com Spring Boot. Gerenci
 | Tecnologia | Versão | Finalidade |
 |---|---|---|
 | Java | 17 | Linguagem |
-| Spring Boot | 3.5.15 | Framework principal |
+| Spring Boot | 3.5.15 | Framework |
 | Spring Security | 6.x | Autenticação e autorização |
-| Spring Data JPA / Hibernate | — | ORM e persistência |
-| H2 Database | 2.x | Banco dev/test |
+| Spring Data JPA / Hibernate | — | ORM |
 | MySQL 8.0 | 8.0 | Banco produção (via Docker) |
-| JJWT | 0.12.6 | Geração e validação de JWT |
-| Lombok | — | Redução de boilerplate |
+| H2 Database | 2.x | Banco dev/test |
+| JJWT | 0.12.6 | Tokens JWT |
+| Lombok | — | Boilerplate |
 | SpringDoc OpenAPI | 2.8.16 | Swagger UI |
 | Maven Wrapper | — | Build |
 
@@ -46,54 +62,43 @@ REST API para um marketplace multi-vendedor construída com Spring Boot. Gerenci
 
 ## Pré-requisitos
 
-### 1. Java 17 JDK
+Antes de começar, você precisa ter instalado:
 
-Verifique a instalação:
-
-```bash
-java -version
-# Saída esperada: openjdk version "17.x" ...
-```
-
-Se não tiver, baixe do [Adoptium](https://adoptium.net/temurin/releases/?version=17) ou use SDKMAN:
-
-```bash
-sdk install java 17.0.x-tem
-```
-
-### 2. Maven (opcional)
-
-O projeto já inclui o Maven Wrapper (`mvnw.cmd`), então o Maven instalado globalmente não é obrigatório. Para verificar se tem:
-
-```bash
-mvn -version
-```
-
-### 3. Docker (obrigatório para produção)
-
-O projeto usa **MySQL 8.0 via Docker** em produção. Para desenvolvimento o H2 embarcado é suficiente.
-
-```bash
-docker --version
-```
+- **Java 17+** — [Download](https://adoptium.net/temurin/releases/?version=17)
+  ```bash
+  java -version
+  # openjdk version "17.x" ...
+  ```
+- **Docker** — Para subir o MySQL em produção
+  ```bash
+  docker --version
+  ```
+- **Maven** (opcional) — O projeto já inclui o `mvnw.cmd` (Maven Wrapper)
 
 ---
 
-## Setup
+## Instalação
 
-### 1. Baixar dependências
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/seu-usuario/marketplace-api.git
+cd marketplace-api
+```
+
+### 2. Baixe as dependências
 
 ```bash
 mvnw.cmd dependency:resolve
 ```
 
-### 2. Compilar
+### 3. Compile o projeto
 
 ```bash
 mvnw.cmd compile
 ```
 
-### 3. Rodar testes (opcional)
+### 4. Execute os testes (opcional)
 
 ```bash
 mvnw.cmd test
@@ -101,116 +106,82 @@ mvnw.cmd test
 
 ---
 
-## Execução
+## Uso
 
-### Desenvolvimento (default)
+### Desenvolvimento (H2 embarcado)
+
+O perfil padrão usa H2 em arquivo — não precisa de Docker. Os dados persistem entre execuções.
 
 ```bash
 mvnw.cmd spring-boot:run
 ```
 
-Acessar: `http://localhost:8080`
+Acesse: [`http://localhost:8080`](http://localhost:8080)
 
-Swagger UI: `http://localhost:8080/swagger-ui.html`
+Swagger UI: [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html)
 
-OpenAPI JSON: `http://localhost:8080/api-docs`
-
-### Perfil dev
+### Perfil dev (H2 com console)
 
 ```bash
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-Acessar: `http://localhost:8081`
+Acesse: [`http://localhost:8081`](http://localhost:8081)
 
-H2 Console: `http://localhost:8081/h2-console`
-- JDBC URL: `jdbc:h2:file:./data/marketplace_dev`
-- User: `sa`
-- Password: *(vazio)*
+H2 Console: [`http://localhost:8081/h2-console`](http://localhost:8081/h2-console) (JDBC: `jdbc:h2:file:./data/marketplace_dev`, usuário: `sa`, senha: vazia)
 
 ### Produção (MySQL via Docker)
 
 ```bash
-# 1. Sobe o container MySQL 8.0
+# 1. Inicie o MySQL
 docker compose up -d
 
-# 2. Aguarda o MySQL ficar pronto (10-15s)
-# Opcional: verificar logs
-docker compose logs -f
-
-# 3. Sobe a aplicação com o perfil de produção
+# 2. Aguarde o MySQL ficar pronto (~15s)
+# 3. Inicie a aplicação com o perfil de produção
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-> **Atenção:** Antes de rodar em produção, altere o secret JWT em `application.properties` ou via variável de ambiente `API_SECURITY_JWT_SECRET`. O docker-compose expõe o MySQL na porta `3306` com usuário `app` e senha `app123`.
+> ⚠️ **Importante:** Altere o `api.security.jwt.secret` antes de usar em produção. Você pode sobrescrever via variável de ambiente `API_SECURITY_JWT_SECRET`.
 
----
+### Perfis
 
-## Perfis de Ambiente
-
-| Perfil | Banco | DDL | Porta | H2 Console | SQL Log | Uso |
-|---|---|---|---|---|---|---|---|
-| *(default)* | H2 file (`./data/marketplace_dev`) | `update` | 8080 | Desligado | Sim | Desenvolvimento diário |
-| `dev` | H2 file (reseta ao iniciar) | `create-drop` | 8081 | Ligado | Sim | Testes manuais |
-| `test` | H2 em memória | `create-drop` | 8080 | — | Não | Testes automatizados |
-| `prod` | **MySQL 8.0** (via Docker) | `update` | 8080 | — | Não | Produção |
-
-### Propriedades por perfil
-
-**Default** (`application.properties`):
-```properties
-spring.datasource.url=jdbc:h2:file:./data/marketplace_dev
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-api.security.jwt.secret=bWFya2V0cGxhY2UtYXBpLWp3dC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=
-api.security.jwt.access-expiration=900000    # 15 min
-api.security.jwt.refresh-expiration=604800000 # 7 dias
-```
-
-**Dev** (`application-dev.properties`):
-```properties
-server.port=8081
-spring.h2.console.enabled=true
-spring.jpa.hibernate.ddl-auto=create-drop
-```
-
-**Prod** (`application-prod.properties`):
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/marketplace_api?useSSL=false&serverTimezone=UTC
-spring.datasource.username=app
-spring.datasource.password=app123
-spring.jpa.show-sql=false
-```
+| Perfil | Banco | DDL | Porta | H2 Console | SQL Log |
+|---|---|---|---|---|---|
+| *(default)* | H2 file | `update` | 8080 | ❌ | ✅ |
+| `dev` | H2 file | `create-drop` | 8081 | ✅ | ✅ |
+| `test` | H2 memória | `create-drop` | 8080 | — | ❌ |
+| `prod` | **MySQL 8.0** (Docker) | `update` | 8080 | — | ❌ |
 
 ---
 
 ## Autenticação
 
-A API usa **JWT stateless**. O fluxo é:
+A API usa **JWT stateless** com refresh token rotation.
 
-1. **Registrar** ou **logar** → recebe `token` (access token) e `refreshToken`
-2. Enviar o `token` no header `Authorization: Bearer <token>` em requisições autenticadas
-3. Quando o token expirar (15 min), usar `/api/auth/refresh` para renovar
-4. O refresh token é **rotacionado**: o antigo é revogado e um novo é emitido
+1. **Registre** ou **faça login** — recebe `token` (válido por 15 min) e `refreshToken` (válido por 7 dias)
+2. Envie o `token` no header: `Authorization: Bearer <token>`
+3. Quando expirar, chame `/api/auth/refresh` com o `refreshToken` para obter um novo par
+4. O refresh token antigo é **revogado** e um novo é emitido
 
 ### Roles
 
-| Role | Permissões |
+| Role | Acesso |
 |---|---|
 | `BUYER` | Criar pedidos, realizar pagamentos |
 | `SELLER` | Gerenciar próprios produtos, receber comissões |
-| `ADMIN` | Acesso total (ignora verificações de dono) |
+| `ADMIN` | Acesso total (ignora verificação de dono) |
 
 ---
 
-## API - Endpoints
+## Endpoints
 
-### Auth (`/api/auth`)
+### Auth — `/api/auth`
 
-#### `POST /api/auth/register` — Cadastro
+#### `POST /api/auth/register`
+Registra um novo usuário.
 
-**Request:**
 ```json
+// Request
 {
   "name": "João Vendedor",
   "email": "joao@email.com",
@@ -218,106 +189,94 @@ A API usa **JWT stateless**. O fluxo é:
   "phone": "11999999999",
   "role": "SELLER"
 }
-```
 
-**Response** `201 Created`:
-```json
+// Response 201
 {
   "id": 1,
   "name": "João Vendedor",
   "email": "joao@email.com",
   "role": "SELLER",
   "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "refreshToken": "a1b2c3d4-..."
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"João","email":"joao@email.com","password":"123456","phone":"11999999999","role":"SELLER"}'
 ```
 
----
+#### `POST /api/auth/login`
+Autentica com email e senha.
 
-#### `POST /api/auth/login` — Login
-
-**Request:**
 ```json
+// Request
 {
   "email": "joao@email.com",
   "password": "123456"
 }
-```
 
-**Response** `200 OK`:
-```json
+// Response 200
 {
   "id": 1,
   "name": "João Vendedor",
   "email": "joao@email.com",
   "role": "SELLER",
   "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "refreshToken": "e5f6g7h8-..."
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"joao@email.com","password":"123456"}'
 ```
 
----
+#### `POST /api/auth/refresh`
+Renova o access token usando o refresh token.
 
-#### `POST /api/auth/refresh` — Renovar token
-
-**Request:**
 ```json
+// Request
 {
-  "refreshToken": "e5f6g7h8-..."
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
 }
-```
 
-**Response** `200 OK`:
-```json
+// Response 200
 {
   "id": 1,
   "name": "João Vendedor",
   "email": "joao@email.com",
   "role": "SELLER",
   "token": "eyJ...novo...",
-  "refreshToken": "i9j0k1l2-..."
+  "refreshToken": "660e8400-e29b-41d4-a716-446655440001"
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/auth/refresh \
   -H "Content-Type: application/json" \
-  -d '{"refreshToken":"e5f6g7h8-..."}'
+  -d '{"refreshToken":"550e8400-e29b-41d4-a716-446655440000"}'
 ```
 
 ---
 
-### Produtos (`/api/products`)
+### Produtos — `/api/products`
 
-#### `POST /api/products` — Criar (SELLER, ADMIN)
+#### `POST /api/products`
+Cria um produto. Requer role `SELLER` ou `ADMIN`.
 
-**Request:**
 ```json
+// Request
 {
   "name": "Notebook Gamer",
   "description": "RTX 4060, 16GB RAM",
   "price": 4999.99,
   "stockQuantity": 10
 }
-```
 
-**Response** `201 Created`:
-```json
+// Response 201
 {
   "id": 1,
   "name": "Notebook Gamer",
@@ -331,7 +290,6 @@ curl -X POST http://localhost:8080/api/auth/refresh \
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/products \
   -H "Content-Type: application/json" \
@@ -339,34 +297,15 @@ curl -X POST http://localhost:8080/api/products \
   -d '{"name":"Notebook Gamer","description":"RTX 4060","price":4999.99,"stockQuantity":10}'
 ```
 
----
-
-#### `GET /api/products` — Listar (público)
+#### `GET /api/products` — Listar todos (público)
 
 ```bash
+# Listar todos
 curl http://localhost:8080/api/products
-```
 
-**Response** `200 OK`:
-```json
-[
-  {
-    "id": 1,
-    "name": "Notebook Gamer",
-    "price": 4999.99,
-    "stockQuantity": 10,
-    "sellerName": "João Vendedor",
-    ...
-  }
-]
-```
-
-**Com filtro por nome:**
-```bash
+# Buscar por nome
 curl "http://localhost:8080/api/products?name=notebook"
 ```
-
----
 
 #### `GET /api/products/{id}` — Buscar por ID (público)
 
@@ -374,47 +313,44 @@ curl "http://localhost:8080/api/products?name=notebook"
 curl http://localhost:8080/api/products/1
 ```
 
----
+#### `PUT /api/products/{id}`
+Atualiza um produto. Requer ser o **dono** ou `ADMIN`.
 
-#### `PUT /api/products/{id}` — Atualizar (dono, ADMIN)
-
-**Request:**
 ```json
+// Request
 {
   "name": "Notebook Gamer Ultra",
-  "description": "RTX 4070, 32GB RAM",
   "price": 5999.99,
   "stockQuantity": 5
 }
 ```
 
-**cURL:**
 ```bash
 curl -X PUT http://localhost:8080/api/products/1 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..." \
-  -d '{"name":"Notebook Gamer Ultra","description":"RTX 4070","price":5999.99,"stockQuantity":5}'
+  -d '{"name":"Notebook Gamer Ultra","price":5999.99,"stockQuantity":5}'
 ```
 
----
-
-#### `DELETE /api/products/{id}` — Excluir (dono, ADMIN)
+#### `DELETE /api/products/{id}`
+Exclui um produto. Requer ser o **dono** ou `ADMIN`.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/products/1 \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
-```
 
-**Response** `204 No Content`
+# Response 204 No Content
+```
 
 ---
 
-### Pedidos (`/api/orders`)
+### Pedidos — `/api/orders`
 
-#### `POST /api/orders` — Criar (BUYER)
+#### `POST /api/orders`
+Cria um pedido. Requer role `BUYER`.
 
-**Request:**
 ```json
+// Request
 {
   "items": [
     { "productId": 1, "quantity": 2 },
@@ -422,10 +358,8 @@ curl -X DELETE http://localhost:8080/api/products/1 \
   ],
   "shippingType": "SEDEX"
 }
-```
 
-**Response** `201 Created`:
-```json
+// Response 201
 {
   "id": 1,
   "buyerId": 2,
@@ -438,11 +372,11 @@ curl -X DELETE http://localhost:8080/api/products/1 \
   "shippingAmount": 25.00,
   "shippingType": "SEDEX",
   "status": "PENDING",
-  "createdAt": "2026-06-23T20:00:00"
+  "createdAt": "2026-06-23T20:00:00",
+  "updatedAt": "2026-06-23T20:00:00"
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
@@ -450,9 +384,7 @@ curl -X POST http://localhost:8080/api/orders \
   -d '{"items":[{"productId":1,"quantity":2}],"shippingType":"SEDEX"}'
 ```
 
-**Shipping types disponíveis:** `EXPRESS`, `ECONOMIC`, `SEDEX`, `PAC`
-
----
+**Tipos de frete:** `EXPRESS`, `ECONOMIC`, `SEDEX`, `PAC`
 
 #### `GET /api/orders` — Listar meus pedidos (autenticado)
 
@@ -461,45 +393,40 @@ curl http://localhost:8080/api/orders \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
 ```
 
----
-
-#### `GET /api/orders/{id}` — Buscar pedido (dono, ADMIN)
+#### `GET /api/orders/{id}` — Buscar pedido (dono ou ADMIN)
 
 ```bash
 curl http://localhost:8080/api/orders/1 \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
 ```
 
----
-
-#### `POST /api/orders/{id}/cancel` — Cancelar (dono, ADMIN)
+#### `POST /api/orders/{id}/cancel` — Cancelar pedido (dono ou ADMIN)
 
 ```bash
 curl -X POST http://localhost:8080/api/orders/1/cancel \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+
+# Response 204 No Content
 ```
 
-**Response** `204 No Content`
-
-> O estoque dos produtos é **restaurado** automaticamente ao cancelar.
+> O estoque dos produtos é **restaurado automaticamente** ao cancelar o pedido.
 
 ---
 
-### Pagamentos (`/api/payments`)
+### Pagamentos — `/api/payments`
 
-#### `POST /api/payments` — Processar pagamento (BUYER, dono do pedido)
+#### `POST /api/payments`
+Processa o pagamento de um pedido. Requer ser o **dono** do pedido.
 
-**Request:**
 ```json
+// Request
 {
   "orderId": 1,
   "amount": 10174.88,
   "paymentMethod": "CREDIT_CARD"
 }
-```
 
-**Response** `201 Created`:
-```json
+// Response 201
 {
   "id": 1,
   "orderId": 1,
@@ -511,7 +438,6 @@ curl -X POST http://localhost:8080/api/orders/1/cancel \
 }
 ```
 
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/payments \
   -H "Content-Type: application/json" \
@@ -519,9 +445,7 @@ curl -X POST http://localhost:8080/api/payments \
   -d '{"orderId":1,"amount":10174.88,"paymentMethod":"CREDIT_CARD"}'
 ```
 
----
-
-#### `GET /api/payments/order/{orderId}` — Buscar pagamento por pedido (dono)
+#### `GET /api/payments/order/{orderId}` — Consultar pagamento (dono)
 
 ```bash
 curl http://localhost:8080/api/payments/order/1 \
@@ -530,7 +454,7 @@ curl http://localhost:8080/api/payments/order/1 \
 
 ---
 
-## Formato de Erro
+### Tratamento de Erros
 
 Todas as exceções retornam um JSON padronizado:
 
@@ -543,18 +467,18 @@ Todas as exceções retornam um JSON padronizado:
 }
 ```
 
-### Códigos HTTP
+**Códigos HTTP:**
 
 | Status | Quando ocorre |
 |---|---|
-| `400 Bad Request` | Validação de campos (ex: email inválido, campo obrigatório) |
-| `402 Payment Required` | Erro no processamento do pagamento |
-| `404 Not Found` | Recurso não encontrado |
-| `409 Conflict` | Estoque insuficiente ou violação de integridade |
-| `422 Unprocessable Entity` | Regra de negócio (ex: usuário não autenticado, permissão negada) |
-| `500 Internal Server Error` | Erro inesperado |
+| `400` | Erro de validação de campos |
+| `402` | Erro no processamento do pagamento |
+| `404` | Recurso não encontrado |
+| `409` | Estoque insuficiente ou violação de integridade |
+| `422` | Regra de negócio (permissão, autenticação) |
+| `500` | Erro interno do servidor |
 
-### Erro de validação (`400`)
+Erro de validação (`400`):
 
 ```json
 {
@@ -573,239 +497,38 @@ Todas as exceções retornam um JSON padronizado:
 
 ```
 src/main/java/com/marketplace/api/
-├── ApiApplication.java                          # Main class (@EnableRetry, @EnableScheduling)
-│
-├── common/
-│   └── OwnershipValidator.java                  # Valida se o usuário é dono do recurso (ou ADMIN)
-│
-├── config/
-│   ├── JwtAuthenticationFilter.java             # Filtro OncePerRequestFilter que valida o token JWT
-│   ├── SecurityConfig.java                      # Configuração de segurança (CSRF, CORS, rotas públicas)
-│   ├── SwaggerConfig.java                       # Configuração do OpenAPI / Swagger UI
-│   └── WebConfig.java                           # Configuração CORS global
-│
-├── controller/
-│   ├── AuthController.java                      # /api/auth    (register, login, refresh)
-│   ├── OrderController.java                     # /api/orders  (CRUD + cancelamento)
-│   ├── PaymentController.java                   # /api/payments (processar + consultar)
-│   └── ProductController.java                   # /api/products (CRUD + busca por nome)
-│
-├── dto/
-│   ├── request/
-│   │   ├── AuthRequest.java                     # Login: email + password
-│   │   ├── RegisterRequest.java                 # Cadastro: name, email, password, phone, role
-│   │   ├── RefreshTokenRequest.java             # Refresh: refreshToken
-│   │   ├── ProductRequest.java                  # Produto: name, description, price, stockQuantity
-│   │   ├── OrderRequest.java                    # Pedido: items + shippingType
-│   │   ├── OrderItemRequest.java                # Item: productId + quantity
-│   │   └── PaymentRequest.java                  # Pagamento: orderId + amount + paymentMethod
-│   └── response/
-│       ├── AuthResponse.java                    # id, name, email, role, token, refreshToken
-│       ├── ProductResponse.java                 # id, name, description, price, stock, seller, timestamps
-│       ├── OrderResponse.java                   # id, buyer, items, totals, shipping, status, timestamps
-│       ├── OrderItemResponse.java               # productId, productName, quantity, unitPrice, subtotal
-│       └── PaymentResponse.java                 # id, orderId, amount, status, method, transactionId
-│
-├── entity/
-│   ├── User.java                                # users: id, name, email, password, phone, role
-│   ├── Product.java                             # products: id, name, description, price, stock, seller, version
-│   ├── Order.java                               # orders: id, buyer, items, totalAmount, shipping, status
-│   ├── OrderItem.java                           # order_items: id, order, product, quantity, unitPrice, subtotal
-│   ├── Payment.java                             # payments: id, order, amount, status, method, transactionId
-│   ├── RefreshToken.java                        # refresh_tokens: id, token, user, expiresAt, revokedAt
-│   ├── Commission.java                          # commissions: id, order, seller, amount, paid
-│   └── enums/
-│       ├── Role.java                            # BUYER, SELLER, ADMIN
-│       ├── OrderStatus.java                     # PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
-│       ├── PaymentStatus.java                   # PENDING, APPROVED, DECLINED, REFUNDED, CANCELLED
-│       └── ShippingType.java                    # EXPRESS, ECONOMIC, SEDEX, PAC
-│
-├── exception/
-│   ├── BusinessException.java                   # HTTP 422
-│   ├── ResourceNotFoundException.java           # HTTP 404
-│   ├── InsufficientStockException.java          # HTTP 409
-│   ├── PaymentProcessingException.java          # HTTP 402
-│   └── GlobalExceptionHandler.java              # @RestControllerAdvice: centraliza tratamento de erros
-│
-├── mapper/
-│   ├── ProductMapper.java                       # Product <-> ProductResponse, ProductRequest -> Product
-│   ├── OrderMapper.java                         # Order -> OrderResponse
-│   └── PaymentMapper.java                       # Payment -> PaymentResponse
-│
-├── repository/
-│   ├── UserRepository.java                      # findByEmail()
-│   ├── ProductRepository.java                   # findBySeller(), findByNameContainingIgnoreCase()
-│   ├── OrderRepository.java                     # findByBuyer()
-│   ├── OrderItemRepository.java                 # (métodos padrão JPA)
-│   ├── PaymentRepository.java                   # findByOrder()
-│   ├── RefreshTokenRepository.java              # findByToken(), deleteAllExpiredSince()
-│   └── CommissionRepository.java                # findBySeller()
-│
-└── service/
-    ├── AuthService.java                         # Lógica de registro, login e refresh token
-    ├── JwtService.java                          # Geração e validação de tokens JWT
-    ├── CustomUserDetailsService.java            # Implementação do UserDetailsService do Spring Security
-    ├── SecurityService.java                     # Interface: getAuthenticatedUser(), requireRole()
-    ├── SecurityServiceImpl.java                 # Implementação: lê SecurityContextHolder
-    ├── RefreshTokenService.java                 # Criação, rotação, revogação e limpeza de refresh tokens
-    ├── ProductService.java                      # CRUD de produtos com verificação de dono
-    ├── OrderService.java                        # Criação, listagem, cancelamento de pedidos
-    ├── InventoryService.java                    # Reserva e liberação de estoque com @Retryable
-    ├── PaymentService.java                      # Processamento de pagamentos
-    ├── CommissionService.java                   # Interface: saveCommissions(), findBySeller()
-    ├── CommissionServiceImpl.java               # Distribuição proporcional de comissão entre vendedores
-    ├── factory/
-    │   ├── ShippingStrategyFactory.java         # Factory que descobre estratégias de frete via @Component
-    │   └── CommissionStrategyFactory.java       # Factory que descobre estratégias de comissão via @Component
-    └── strategy/
-        ├── ShippingStrategy.java                # Interface: calculate(Order)
-        ├── ExpressShipping.java                 # 10% do total do pedido
-        ├── EconomicShipping.java                # R$ 15,00 fixo
-        ├── SedexShipping.java                   # R$ 25,00 fixo
-        ├── PacShipping.java                     # R$ 20,00 fixo
-        ├── CommissionStrategy.java              # Interface: calculate(Order)
-        ├── StandardCommission.java              # 5% do total
-        └── PremiumCommission.java               # 3% do total
+├── ApiApplication.java              # Main class (@EnableRetry, @EnableScheduling)
+├── common/                          # OwnershipValidator
+├── config/                          # Security, JWT filter, CORS, Swagger
+├── controller/                      # REST controllers (4)
+├── dto/                             # Request/Response DTOs
+├── entity/                          # JPA entities (7) + enums (4)
+├── exception/                       # Custom exceptions (4) + GlobalExceptionHandler
+├── mapper/                          # Entity <-> DTO mappers
+├── repository/                      # Spring Data JPA repositories (7)
+└── service/                         # Business services + factories + strategies
+    ├── factory/                     # ShippingStrategyFactory, CommissionStrategyFactory
+    └── strategy/                    # ShippingStrategy (4), CommissionStrategy (2)
 ```
-
-```
-src/test/java/com/marketplace/api/
-├── ApiApplicationTests.java                     # Teste de contexto
-├── controller/
-│   └── OrderControllerTest.java                 # Testes do controller de pedidos (4 testes)
-├── integration/
-│   ├── AbstractIntegrationTest.java             # Base class com MockMvc, helpers, cleanup
-│   ├── AuthIntegrationTest.java                 # Testes completos de registro e login (5 testes)
-│   ├── ProductIntegrationTest.java              # Testes completos de produtos (8 testes)
-│   ├── OrderIntegrationTest.java                # Testes completos de pedidos (8 testes)
-│   └── PaymentIntegrationTest.java              # Testes completos de pagamentos (7 testes)
-└── service/
-    ├── OrderServiceTest.java                    # Mockito: lógica de pedidos (11 testes)
-    ├── ProductServiceTest.java                  # Mockito: lógica de produtos (10 testes)
-    ├── PaymentServiceTest.java                  # Mockito: lógica de pagamentos (7 testes)
-    ├── InventoryServiceTest.java                # Mockito: reserva de estoque (2 testes)
-    ├── SecurityServiceTest.java                 # Mockito: autenticação e roles (5 testes)
-    ├── CommissionServiceTest.java               # Mockito: distribuição de comissões (3 testes)
-    ├── ShippingStrategyTest.java                # Teste das estratégias de frete (4 testes)
-    └── OwnershipValidatorTest.java              # Teste do validador de dono (3 testes)
-```
-
----
-
-## Modelagem do Banco
-
-```mermaid
-erDiagram
-    User ||--o{ Product : "seller"
-    User ||--o{ Order : "buyer"
-    User ||--o{ RefreshToken : ""
-    User ||--o{ Commission : "seller"
-
-    Order ||--o{ OrderItem : "contém"
-    Order ||--o| Payment : "tem"
-    Order ||--o{ Commission : "gera"
-
-    Product ||--o{ OrderItem : ""
-```
-
-### Tabelas
-
-| Tabela | Colunas principais |
-|---|---|
-| `users` | id (PK), name, email (unique), password, phone, role, created_at, updated_at |
-| `products` | id (PK), name, description, price, stock_quantity, seller_id (FK), version, created_at, updated_at |
-| `orders` | id (PK), buyer_id (FK), total_amount, shipping_amount, shipping_type, status, created_at, updated_at |
-| `order_items` | id (PK), order_id (FK), product_id (FK), quantity, unit_price, subtotal |
-| `payments` | id (PK), order_id (FK unique), amount, status, payment_method, transaction_id, created_at |
-| `refresh_tokens` | id (PK), token (unique), user_id (FK), expires_at, revoked_at, created_at |
-| `commissions` | id (PK), order_id (FK), seller_id (FK), amount, paid, created_at |
-
----
-
-## Padrões de Projeto
-
-### Strategy + Factory — Frete e Comissão
-
-As estratégias de frete (`ShippingStrategy`) e comissão (`CommissionStrategy`) são interfaces que qualquer `@Component` pode implementar. As factories (`ShippingStrategyFactory`, `CommissionStrategyFactory`) injetam uma `List<Strategy>` do Spring e montam um `Map<String, Strategy>` por tipo. Assim, para adicionar uma nova estratégia basta criar uma classe com `@Component` — nenhum código existente é alterado (OCP).
-
-### DTO (Data Transfer Object)
-
-Request e response têm classes próprias, desacopladas das entidades JPA. Mappers (`ProductMapper`, `OrderMapper`, `PaymentMapper`) convertem entre os layers.
-
-### Ownership Validation
-
-O `OwnershipValidator.validateOwnership()` compara o ID do dono do recurso com o ID do usuário autenticado. ADMIN tem bypass automático.
-
-### Optimistic Locking com Retry
-
-A entidade `Product` usa `@Version` para lock otimista. `InventoryService` anota `reserveStock()` e `releaseStock()` com `@Retryable` (até 3 tentativas com backoff exponencial) para tratar `ObjectOptimisticLockingFailureException` em cenários de concorrência.
-
-### Global Exception Handler
-
-`@RestControllerAdvice` centraliza toda exception em um JSON padronizado com timestamp, status HTTP e mensagem.
-
-### Scheduled Task
-
-`RefreshTokenService.cleanupExpired()` roda a cada 24h (`@Scheduled`) para deletar tokens expirados/revogados.
-
----
-
-## Testes
-
-### Executar
-
-```bash
-# Todos os testes (≈78 casos em 15 classes)
-mvnw.cmd test
-
-# Classe específica
-mvnw.cmd test -Dtest=OrderServiceTest
-
-# Método específico
-mvnw.cmd test -Dtest=OrderServiceTest#shouldCreateOrderSuccessfully
-
-# Pacote específico
-mvnw.cmd test "-Dtest=com.marketplace.api.service.*"
-```
-
-### Categorias
-
-| Tipo | Tecnologia | O que testa | Quantidade |
-|---|---|---|---|
-| Unitário | Mockito | Lógica de serviço com dependências mockadas | ~45 testes |
-| Controller | `@WebMvcTest` + Mockito | Camada HTTP com serviços mockados | 4 testes |
-| Integração | `@SpringBootTest` + MockMvc + H2 | Fluxo completo com banco embeddado | ~28 testes |
-
-### Estrutura dos testes de integração
-
-A classe base `AbstractIntegrationTest` fornece:
-
-- `@SpringBootTest` com `@AutoConfigureMockMvc`
-- `@ActiveProfiles("test")` — usa H2 em memória isolado
-- `@BeforeEach` que limpa todas as tabelas
-- Helpers: `createUser(email, role)`, `createProduct(seller)`, `tokenFor(user)`, `json(content)`, `extractId(response)`
 
 ---
 
 ## Docker
 
-O projeto usa **MySQL 8.0** em produção via Docker. O container é definido no `docker-compose.yml`:
+O banco de produção é **MySQL 8.0** rodando via Docker Compose:
 
 ```yaml
 services:
   mysql:
     image: mysql:8.0
     container_name: marketplace-api-mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
+    ports: ["3306:3306"]
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: marketplace-api
       MYSQL_USER: app
       MYSQL_PASSWORD: app123
-    volumes:
-      - mysql_data:/var/lib/mysql
+    volumes: [mysql_data:/var/lib/mysql]
 
 volumes:
   mysql_data:
@@ -826,14 +549,14 @@ docker compose stop
 # Parar e remover container
 docker compose down
 
-# Parar, remover container e apagar volume (dados)
+# Parar, remover container + volume (apaga dados)
 docker compose down -v
 
-# Acessar o MySQL via terminal
+# Acessar terminal MySQL
 docker exec -it marketplace-api-mysql mysql -u app -p
 ```
 
-### Credenciais do MySQL
+### Credenciais
 
 | Propriedade | Valor |
 |---|---|
@@ -842,29 +565,127 @@ docker exec -it marketplace-api-mysql mysql -u app -p
 | Database | `marketplace-api` |
 | Usuário | `app` |
 | Senha | `app123` |
-| Root password | `root123` |
+
+---
+
+## Modelagem do Banco
+
+```
+User (1) ----< Product (seller)
+User (1) ----< Order (buyer)
+User (1) ----< RefreshToken
+User (1) ----< Commission (seller)
+Order (1) ----< OrderItem
+Order (1) ----> Payment
+Order (1) ----< Commission
+Product (1) ----< OrderItem
+```
+
+### Tabelas
+
+| Tabela | Colunas principais |
+|---|---|
+| `users` | id (PK), name, email (unique), password, phone, role |
+| `products` | id (PK), name, description, price, stock_quantity, seller_id (FK), version |
+| `orders` | id (PK), buyer_id (FK), total_amount, shipping_amount, shipping_type, status |
+| `order_items` | id (PK), order_id (FK), product_id (FK), quantity, unit_price, subtotal |
+| `payments` | id (PK), order_id (FK unique), amount, status, payment_method, transaction_id |
+| `refresh_tokens` | id (PK), token (unique), user_id (FK), expires_at, revoked_at |
+| `commissions` | id (PK), order_id (FK), seller_id (FK), amount, paid |
+
+---
+
+## Padrões de Projeto
+
+### Strategy + Factory
+`ShippingStrategy` e `CommissionStrategy` são interfaces implementadas por componentes `@Component`. As factories injetam uma `List<Strategy>` e montam um mapa por tipo. Para adicionar nova estratégia, basta criar uma nova classe — nenhum código existente é alterado.
+
+### DTO
+Request e Response são classes separadas das entidades JPA. Mappers fazem a conversão.
+
+### Ownership Validation
+`OwnershipValidator` compara o ID do recurso com o ID do usuário autenticado. ADMIN tem bypass automático.
+
+### Optimistic Locking + Retry
+`Product` usa `@Version`. `InventoryService` anota `reserveStock()` e `releaseStock()` com `@Retryable` (até 3 tentativas, backoff exponencial) para concorrência.
+
+### Global Exception Handler
+`@RestControllerAdvice` centraliza erros em JSON padronizado.
+
+### Scheduled Task
+`RefreshTokenService.cleanupExpired()` roda a cada 24h via `@Scheduled`.
+
+---
+
+## Testes
+
+O projeto possui **~78 testes** distribuídos em **15 classes**:
+
+| Tipo | Tecnologia | Quantidade |
+|---|---|---|
+| Unitário (Mockito) | Serviços mockados | ~45 |
+| Controller (`@WebMvcTest`) | Camada HTTP | 4 |
+| Integração (`@SpringBootTest`) | Fluxo completo com H2 | ~28 |
+
+```bash
+# Executar todos os testes
+mvnw.cmd test
+
+# Classe específica
+mvnw.cmd test -Dtest=OrderServiceTest
+
+# Método específico
+mvnw.cmd test -Dtest=OrderServiceTest#shouldCreateOrderSuccessfully
+
+# Pacote
+mvnw.cmd test "-Dtest=com.marketplace.api.service.*"
+```
+
+---
+
+## Contribuição
+
+Contribuições são bem-vindas! Siga os passos:
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feat/nova-feature`)
+3. Commit suas alterações seguindo [Conventional Commits](https://www.conventionalcommits.org/)
+4. Faça push (`git push origin feat/nova-feature`)
+5. Abra um Pull Request
+
+### Padrão de commits
+
+```
+feat: add new feature
+fix: correct bug
+test: add tests
+docs: update documentation
+refactor: code change without fix or feature
+chore: build, config, dependencies
+```
+
+---
+
+## Licença
+
+Distribuído sob licença MIT. Veja [LICENSE](LICENSE) para mais informações.
 
 ---
 
 ## Linha do Tempo do Projeto
 
-O histórico de commits segue o [Conventional Commits](https://www.conventionalcommits.org/) e reflete a construção do projeto por camadas:
-
-| Commit | Descrição |
-|---|---|
-| `chore: initial project setup with Spring Boot 3.5.15 and Maven Wrapper` | Estrutura inicial do projeto, `pom.xml`, `mvnw`, `.gitignore`, propriedades padrão |
-| `feat: add JPA entities and enums for domain model` | Entidades `User`, `Product`, `Order`, `OrderItem`, `Payment`, `RefreshToken`, `Commission` + enums `Role`, `OrderStatus`, `PaymentStatus`, `ShippingType` |
-| `feat: add Spring Data JPA repositories` | Interfaces `UserRepository`, `ProductRepository`, `OrderRepository`, `OrderItemRepository`, `PaymentRepository`, `RefreshTokenRepository`, `CommissionRepository` |
-| `feat: add request/response DTOs and entity mappers` | DTOs de request (`AuthRequest`, `RegisterRequest`, `ProductRequest`, `OrderRequest`, etc.) e response (`AuthResponse`, `ProductResponse`, `OrderResponse`, `PaymentResponse`) + mappers |
-| `feat: add custom exceptions and global exception handler` | `BusinessException`, `ResourceNotFoundException`, `InsufficientStockException`, `PaymentProcessingException`, `GlobalExceptionHandler` com `@RestControllerAdvice` |
-| `feat: add JWT authentication and security configuration` | `JwtService`, `JwtAuthenticationFilter`, `SecurityConfig`, `CustomUserDetailsService`, `SecurityService`/`SecurityServiceImpl` |
-| `feat: add business services layer` | `AuthService`, `RefreshTokenService`, `ProductService`, `OrderService`, `InventoryService`, `PaymentService` |
-| `feat: add commission and shipping strategies with factories` | `CommissionService`/`CommissionServiceImpl`, `ShippingStrategy`, `CommissionStrategy` com implementações e factories |
-| `feat: add REST controllers with role-based access` | `AuthController`, `ProductController`, `OrderController`, `PaymentController` |
-| `feat: add Swagger/OpenAPI documentation` | `SwaggerConfig` com SpringDoc OpenAPI 2.8.16 |
-| `feat: add CORS configuration` | `WebConfig` permitindo todas origens em desenvolvimento |
-| `test: add unit tests for service layer` | Testes Mockito para `OrderService`, `ProductService`, `PaymentService`, `InventoryService`, `SecurityService`, `CommissionService`, `ShippingStrategy`, `OwnershipValidator` |
-| `test: add controller tests` | Testes `@WebMvcTest` para `OrderController` |
-| `test: add integration tests` | Testes `@SpringBootTest` + MockMvc para autenticação, produtos, pedidos e pagamentos |
-| `docs: add README with API documentation` | Documentação completa com endpoints, exemplos, setup e arquitetura |
-| `chore: add Docker Compose for MySQL 8.0` | `docker-compose.yml` com MySQL 8.0 para ambiente de produção |
+```
+chore: initial project setup with Spring Boot 3.5.15 and Maven Wrapper
+feat: add multi-environment configuration (default, dev, test, prod)
+feat: add main application class with retry and scheduling support
+feat: add JPA entities and enums for domain model
+feat: add Spring Data JPA repositories
+feat: add request/response DTOs and entity mappers
+feat: add custom exceptions and global exception handler
+feat: add JWT authentication and security configuration
+feat: add business services layer
+feat: add commission and shipping strategies with factories
+feat: add REST controllers with role-based access
+test: add unit, controller, and integration tests
+docs: add README with API documentation and Docker Compose for MySQL 8.0
+```
