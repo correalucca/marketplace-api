@@ -11,13 +11,14 @@ import com.marketplace.api.entity.Order;
 import com.marketplace.api.entity.enums.OrderStatus;
 import com.marketplace.api.service.strategy.EconomicShipping;
 import com.marketplace.api.service.strategy.ExpressShipping;
+import com.marketplace.api.service.strategy.PacShipping;
 import com.marketplace.api.service.strategy.SedexShipping;
 import com.marketplace.api.service.strategy.ShippingStrategy;
 
 class ShippingStrategyTest {
 
     @Test
-    @DisplayName("ExpressShipping deve calcular 10% do total")
+    @DisplayName("ExpressShipping: deve calcular 10% do total")
     void expressShippingShouldCalculateTenPercent() {
         Order order = new Order();
         order.setTotalAmount(BigDecimal.valueOf(1000.00));
@@ -30,7 +31,19 @@ class ShippingStrategyTest {
     }
 
     @Test
-    @DisplayName("EconomicShipping deve retornar 15.00")
+    @DisplayName("ExpressShipping: deve retornar zero quando total é zero")
+    void expressShippingShouldReturnZeroWhenTotalIsZero() {
+        Order order = new Order();
+        order.setTotalAmount(BigDecimal.ZERO);
+
+        ShippingStrategy strategy = new ExpressShipping();
+        BigDecimal result = strategy.calculate(order);
+
+        assertThat(result).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("EconomicShipping: deve retornar 15.00")
     void economicShippingShouldReturnFifteen() {
         Order order = new Order();
         order.setTotalAmount(BigDecimal.valueOf(1000.00));
@@ -42,7 +55,19 @@ class ShippingStrategyTest {
     }
 
     @Test
-    @DisplayName("SedexShipping deve retornar 25.00")
+    @DisplayName("EconomicShipping: deve retornar 15.00 independente do total")
+    void economicShippingShouldAlwaysReturnFifteen() {
+        Order order = new Order();
+        order.setTotalAmount(BigDecimal.ZERO);
+
+        ShippingStrategy strategy = new EconomicShipping();
+        BigDecimal result = strategy.calculate(order);
+
+        assertThat(result).isEqualByComparingTo("15.00");
+    }
+
+    @Test
+    @DisplayName("SedexShipping: deve retornar 25.00")
     void sedexShippingShouldReturnTwentyFive() {
         Order order = new Order();
         order.setTotalAmount(BigDecimal.valueOf(1000.00));
@@ -54,7 +79,19 @@ class ShippingStrategyTest {
     }
 
     @Test
-    @DisplayName("Liskov Substitution: qualquer ShippingStrategy pode ser usada")
+    @DisplayName("PacShipping: deve retornar 20.00")
+    void pacShippingShouldReturnTwenty() {
+        Order order = new Order();
+        order.setTotalAmount(BigDecimal.valueOf(1000.00));
+
+        ShippingStrategy strategy = new PacShipping();
+        BigDecimal result = strategy.calculate(order);
+
+        assertThat(result).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    @DisplayName("Princípio de Liskov: qualquer ShippingStrategy pode ser utilizada")
     void anyShippingStrategyCanBeUsed() {
         Order order = new Order();
         order.setTotalAmount(BigDecimal.valueOf(500.00));
@@ -62,6 +99,7 @@ class ShippingStrategyTest {
         assertThat(calculateShipping(new ExpressShipping(), order)).isEqualByComparingTo("50.00");
         assertThat(calculateShipping(new EconomicShipping(), order)).isEqualByComparingTo("15.00");
         assertThat(calculateShipping(new SedexShipping(), order)).isEqualByComparingTo("25.00");
+        assertThat(calculateShipping(new PacShipping(), order)).isEqualByComparingTo("20.00");
     }
 
     private BigDecimal calculateShipping(ShippingStrategy strategy, Order order) {

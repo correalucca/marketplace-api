@@ -28,7 +28,7 @@ import com.marketplace.api.entity.enums.OrderStatus;
 import com.marketplace.api.entity.enums.Role;
 import com.marketplace.api.entity.enums.ShippingType;
 import com.marketplace.api.service.OrderService;
-import com.marketplace.api.service.SecurityService;
+import com.marketplace.api.service.security.SecurityService;
 
 @WebMvcTest(OrderController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -80,6 +80,42 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.buyerName").value("Buyer"))
                 .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("POST /api/orders - Deve retornar 400 quando corpo vazio")
+    void shouldReturn400OnCreateWithEmptyBody() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/orders - Deve retornar 400 quando items vazio")
+    void shouldReturn400OnCreateWithEmptyItems() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "items": [],
+                                    "shippingType": "EXPRESS"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/orders - Deve retornar 400 quando shippingType ausente")
+    void shouldReturn400OnCreateWithoutShippingType() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "items": [{"productId": 1, "quantity": 2}]
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

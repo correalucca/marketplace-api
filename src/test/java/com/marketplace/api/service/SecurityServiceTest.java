@@ -23,6 +23,7 @@ import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
 import com.marketplace.api.exception.BusinessException;
 import com.marketplace.api.repository.UserRepository;
+import com.marketplace.api.service.security.SecurityServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class SecurityServiceTest {

@@ -59,4 +59,32 @@ class InventoryServiceTest {
 
         verify(productRepository).save(product);
     }
+
+    @Test
+    @DisplayName("Deve liberar estoque com sucesso")
+    void shouldReleaseStockSuccessfully() {
+        Product product = Product.builder()
+                .id(1L)
+                .name("Notebook")
+                .stockQuantity(5)
+                .build();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        OrderItemRequest item = new OrderItemRequest(1L, 2);
+        inventoryService.releaseStock(item);
+
+        verify(productRepository).save(product);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao liberar estoque de produto inexistente")
+    void shouldThrowWhenReleasingStockForNonExistentProduct() {
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        OrderItemRequest item = new OrderItemRequest(99L, 1);
+
+        assertThrows(com.marketplace.api.exception.ResourceNotFoundException.class,
+                () -> inventoryService.releaseStock(item));
+    }
 }
