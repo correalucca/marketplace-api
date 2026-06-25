@@ -1,27 +1,23 @@
 package com.marketplace.api.integration;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 import java.math.BigDecimal;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.ResponseEntity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.marketplace.api.entity.Product;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
 
-/**
- * Testes de integração para pedidos (endpoints /api/orders/*).
- * <p>
- * Cenários: criação (role BUYER vs SELLER), listagem (apenas próprios),
- * visualização por ID (ownership), cancelamento (ownership), requisições sem token.
- */
 class OrderIntegrationTest extends AbstractIntegrationTest {
 
     @Test
@@ -31,14 +27,14 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").isNumber())
-            .andExpect(jsonPath("$.buyerId").isNumber())
-            .andExpect(jsonPath("$.status").value("PENDING"));
+        ResponseEntity<String> response = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("id").isNumber()).isTrue();
+        assertThat(body.get("buyerId").isNumber()).isTrue();
+        assertThat(body.get("status").asText()).isEqualTo("PENDING");
     }
 
     @Test
@@ -48,11 +44,10 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User other = createUser("Other", "other@test.com", Role.SELLER);
         Product product = createProduct(other, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(seller))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 1)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 1), authHeaders(seller));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -61,10 +56,10 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(post("/api/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 1)))
-            .andExpect(status().isForbidden());
+        ResponseEntity<String> response = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 1), jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(FORBIDDEN);
     }
 
     @Test
@@ -74,17 +69,15 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(get("/api/orders")
-                .header("Authorization", tokenFor(buyer)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].id").value(orderId));
+        ResponseEntity<String> listResponse = get("/api/orders", authHeaders(buyer));
+
+        assertThat(listResponse.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(listResponse.getBody());
+        assertThat(body.get(0).get("id").asLong()).isEqualTo(orderId);
     }
 
     @Test
@@ -94,17 +87,15 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(get("/api/orders/" + orderId)
-                .header("Authorization", tokenFor(buyer)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(orderId));
+        ResponseEntity<String> response = get("/api/orders/" + orderId, authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("id").asLong()).isEqualTo(orderId);
     }
 
     @Test
@@ -115,16 +106,13 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer2 = createUser("Buyer2", "b2@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer1));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(get("/api/orders/" + orderId)
-                .header("Authorization", tokenFor(buyer2)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = get("/api/orders/" + orderId, authHeaders(buyer2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -134,16 +122,13 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel")
-                .header("Authorization", tokenFor(buyer)))
-            .andExpect(status().isNoContent());
+        ResponseEntity<String> response = post("/api/orders/" + orderId + "/cancel", "", authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(NO_CONTENT);
     }
 
     @Test
@@ -154,16 +139,13 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer2 = createUser("Buyer2", "b2@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer1));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel")
-                .header("Authorization", tokenFor(buyer2)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = post("/api/orders/" + orderId + "/cancel", "", authHeaders(buyer2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -173,14 +155,12 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(result);
+        ResponseEntity<String> createResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(createResponse);
 
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel"))
-            .andExpect(status().isForbidden());
+        ResponseEntity<String> response = post("/api/orders/" + orderId + "/cancel", "", jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(FORBIDDEN);
     }
 }

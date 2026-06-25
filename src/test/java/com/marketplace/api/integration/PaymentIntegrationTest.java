@@ -1,28 +1,24 @@
 package com.marketplace.api.integration;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.PAYMENT_REQUIRED;
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 import java.math.BigDecimal;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.ResponseEntity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.marketplace.api.entity.Product;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
 
-/**
- * Testes de integração para pagamentos (endpoints /api/payments/*).
- * <p>
- * Cenários: pagamento do próprio pedido (APPROVED), tentativa de pagar pedido alheio
- * (ownership), pagamento de pedido cancelado, visualização de pagamento (ownership),
- * requisições sem token.
- */
 class PaymentIntegrationTest extends AbstractIntegrationTest {
 
     @Test
@@ -32,20 +28,17 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/payments")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("APPROVED"))
-            .andExpect(jsonPath("$.orderId").value(orderId));
+        ResponseEntity<String> response = post("/api/payments",
+            PAYMENT_JSON.formatted(orderId, "10030.00"), authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("status").asText()).isEqualTo("APPROVED");
+        assertThat(body.get("orderId").asLong()).isEqualTo(orderId);
     }
 
     @Test
@@ -56,18 +49,14 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer2 = createUser("Buyer2", "b2@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer1));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/payments")
-                .header("Authorization", tokenFor(buyer2))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = post("/api/payments",
+            PAYMENT_JSON.formatted(orderId, "10030.00"), authHeaders(buyer2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -77,17 +66,14 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/payments")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isForbidden());
+        ResponseEntity<String> response = post("/api/payments",
+            PAYMENT_JSON.formatted(orderId, "10030.00"), jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(FORBIDDEN);
     }
 
     @Test
@@ -97,22 +83,16 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel")
-                .header("Authorization", tokenFor(buyer)))
-            .andExpect(status().isNoContent());
+        post("/api/orders/" + orderId + "/cancel", "", authHeaders(buyer));
 
-        mockMvc.perform(post("/api/payments")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isPaymentRequired());
+        ResponseEntity<String> response = post("/api/payments",
+            PAYMENT_JSON.formatted(orderId, "10030.00"), authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(PAYMENT_REQUIRED);
     }
 
     @Test
@@ -122,23 +102,17 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/payments")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isCreated());
+        post("/api/payments", PAYMENT_JSON.formatted(orderId, "10030.00"), authHeaders(buyer));
 
-        mockMvc.perform(get("/api/payments/order/" + orderId)
-                .header("Authorization", tokenFor(buyer)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.orderId").value(orderId));
+        ResponseEntity<String> response = get("/api/payments/order/" + orderId, authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("orderId").asLong()).isEqualTo(orderId);
     }
 
     @Test
@@ -149,21 +123,14 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
         User buyer2 = createUser("Buyer2", "b2@test.com", Role.BUYER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        MvcResult orderResult = mockMvc.perform(post("/api/orders")
-                .header("Authorization", tokenFor(buyer1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(ORDER_JSON, product.getId(), 2)))
-            .andExpect(status().isCreated()).andReturn();
-        Long orderId = extractId(orderResult);
+        ResponseEntity<String> orderResponse = post("/api/orders",
+            ORDER_JSON.formatted(product.getId(), 2), authHeaders(buyer1));
+        Long orderId = extractId(orderResponse);
 
-        mockMvc.perform(post("/api/payments")
-                .header("Authorization", tokenFor(buyer1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PAYMENT_JSON, orderId, "10030.00")))
-            .andExpect(status().isCreated());
+        post("/api/payments", PAYMENT_JSON.formatted(orderId, "10030.00"), authHeaders(buyer1));
 
-        mockMvc.perform(get("/api/payments/order/" + orderId)
-                .header("Authorization", tokenFor(buyer2)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = get("/api/payments/order/" + orderId, authHeaders(buyer2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 }

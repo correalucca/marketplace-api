@@ -4,15 +4,20 @@ import java.math.BigDecimal;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.marketplace.api.service.JwtService;
 import com.marketplace.api.entity.Product;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
@@ -22,29 +27,25 @@ import com.marketplace.api.repository.PaymentRepository;
 import com.marketplace.api.repository.ProductRepository;
 import com.marketplace.api.repository.RefreshTokenRepository;
 import com.marketplace.api.repository.UserRepository;
+import com.marketplace.api.service.security.JwtService;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 @TestPropertySource(properties = {
     "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.jpa.show-sql=false"
+    "spring.jpa.show-sql=false",
+    "api.security.jwt.secret=test-jwt-secret-key-not-for-production-but-longer-for-testing",
+    "api.security.jwt.access-expiration=900000",
+    "api.security.jwt.refresh-expiration=604800000"
 })
-/**
- * Classe base para os testes de integração.
- * <p>
- * Fornece para as subclasses:
- * <ul>
- *   <li>Contexto Spring real (@SpringBootTest + MockMvc com security)</li>
- *   <li>Banco H2 em memória (isolado do banco de desenvolvimento)</li>
- *   <li>Limpeza automática do banco antes de cada teste</li>
- *   <li>Helpers: createUser(), createProduct(), tokenFor(), json(), extractId()</li>
- * </ul>
- * As subclasses herdam isso e só precisam escrever os cenários de teste.
- */
 public abstract class AbstractIntegrationTest {
+    @LocalServerPort
+    protected int port;
+
     @Autowired
-    protected MockMvc mockMvc;
+    protected TestRestTemplate restTemplate;
+
     @Autowired
     protected ObjectMapper objectMapper;
     @Autowired
@@ -66,12 +67,17 @@ public abstract class AbstractIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        SecurityContextHolder.clearContext();
         paymentRepository.deleteAll();
         commissionRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         orderRepository.deleteAll();
         productRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    protected String baseUrl() {
+        return "http://localhost:" + port;
     }
 
     protected String tokenFor(User user) {
@@ -92,12 +98,40 @@ public abstract class AbstractIntegrationTest {
             .seller(seller).build());
     }
 
-    protected Long extractId(MvcResult result) throws Exception {
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    protected Long extractId(ResponseEntity<String> response) throws Exception {
+        return objectMapper.readTree(response.getBody()).get("id").asLong();
     }
 
-    protected String json(String template, Object... args) {
-        return template.formatted(args);
+    protected HttpHeaders jsonHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
+    }
+
+    protected HttpHeaders authHeaders(User user) {
+        HttpHeaders headers = jsonHeaders();
+        headers.set("Authorization", tokenFor(user));
+        return headers;
+    }
+
+    protected ResponseEntity<String> post(String path, String json, HttpHeaders headers) {
+        return restTemplate.exchange(baseUrl() + path, HttpMethod.POST,
+            new HttpEntity<>(json, headers), String.class);
+    }
+
+    protected ResponseEntity<String> get(String path, HttpHeaders headers) {
+        return restTemplate.exchange(baseUrl() + path, HttpMethod.GET,
+            new HttpEntity<>(headers), String.class);
+    }
+
+    protected ResponseEntity<String> put(String path, String json, HttpHeaders headers) {
+        return restTemplate.exchange(baseUrl() + path, HttpMethod.PUT,
+            new HttpEntity<>(json, headers), String.class);
+    }
+
+    protected ResponseEntity<String> delete(String path, HttpHeaders headers) {
+        return restTemplate.exchange(baseUrl() + path, HttpMethod.DELETE,
+            new HttpEntity<>(headers), String.class);
     }
 
     protected static final String PRODUCT_JSON = """

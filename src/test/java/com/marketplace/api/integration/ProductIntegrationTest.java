@@ -1,36 +1,33 @@
 package com.marketplace.api.integration;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 import java.math.BigDecimal;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.marketplace.api.entity.Product;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
 
-/**
- * Testes de integração para produtos (endpoints /api/products/*).
- * <p>
- * Cenários: CRUD público/autenticado, role SELLER vs BUYER,
- * ownership (próprio produto vs produto de outro vendedor), requisições sem token.
- */
 class ProductIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     @DisplayName("GET /api/products → 200 (público)")
     void shouldListProductsPublicly() throws Exception {
-        mockMvc.perform(get("/api/products"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray());
+        ResponseEntity<String> response = get("/api/products", jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.isArray()).isTrue();
     }
 
     @Test
@@ -39,10 +36,12 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(get("/api/products/" + product.getId()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(product.getId()))
-            .andExpect(jsonPath("$.name").value("Notebook"));
+        ResponseEntity<String> response = get("/api/products/" + product.getId(), jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("id").asLong()).isEqualTo(product.getId());
+        assertThat(body.get("name").asText()).isEqualTo("Notebook");
     }
 
     @Test
@@ -50,13 +49,14 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
     void sellerShouldCreateProduct() throws Exception {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
 
-        mockMvc.perform(post("/api/products")
-                .header("Authorization", tokenFor(seller))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PRODUCT_JSON, "Notebook", "Gaming", "5000.00", 10)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.name").value("Notebook"))
-            .andExpect(jsonPath("$.sellerId").isNumber());
+        ResponseEntity<String> response = post("/api/products",
+            PRODUCT_JSON.formatted("Notebook", "Gaming", "5000.00", 10),
+            authHeaders(seller));
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("name").asText()).isEqualTo("Notebook");
+        assertThat(body.get("sellerId").isNumber()).isTrue();
     }
 
     @Test
@@ -64,20 +64,21 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
     void buyerShouldNotCreateProduct() throws Exception {
         User buyer = createUser("Buyer", "buyer@test.com", Role.BUYER);
 
-        mockMvc.perform(post("/api/products")
-                .header("Authorization", tokenFor(buyer))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PRODUCT_JSON, "Phone", "Mobile", "2000.00", 5)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = post("/api/products",
+            PRODUCT_JSON.formatted("Phone", "Mobile", "2000.00", 5),
+            authHeaders(buyer));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
     @DisplayName("POST /api/products sem token → 403")
     void shouldRejectUnauthenticatedCreate() throws Exception {
-        mockMvc.perform(post("/api/products")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PRODUCT_JSON, "Phone", "Mobile", "2000.00", 5)))
-            .andExpect(status().isForbidden());
+        ResponseEntity<String> response = post("/api/products",
+            PRODUCT_JSON.formatted("Phone", "Mobile", "2000.00", 5),
+            jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(FORBIDDEN);
     }
 
     @Test
@@ -86,12 +87,13 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
         Product product = createProduct(seller, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(put("/api/products/" + product.getId())
-                .header("Authorization", tokenFor(seller))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PRODUCT_JSON, "Updated", "New", "5500.00", 8)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("Updated"));
+        ResponseEntity<String> response = put("/api/products/" + product.getId(),
+            PRODUCT_JSON.formatted("Updated", "New", "5500.00", 8),
+            authHeaders(seller));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("name").asText()).isEqualTo("Updated");
     }
 
     @Test
@@ -101,11 +103,11 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller2 = createUser("Seller2", "s2@test.com", Role.SELLER);
         Product product = createProduct(seller1, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(put("/api/products/" + product.getId())
-                .header("Authorization", tokenFor(seller2))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(PRODUCT_JSON, "Hacked", "", "1.00", 1)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = put("/api/products/" + product.getId(),
+            PRODUCT_JSON.formatted("Hacked", "", "1.00", 1),
+            authHeaders(seller2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -114,9 +116,9 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
         Product product = createProduct(seller, "Temp", BigDecimal.valueOf(100), 5);
 
-        mockMvc.perform(delete("/api/products/" + product.getId())
-                .header("Authorization", tokenFor(seller)))
-            .andExpect(status().isNoContent());
+        ResponseEntity<String> response = delete("/api/products/" + product.getId(), authHeaders(seller));
+
+        assertThat(response.getStatusCode()).isEqualTo(NO_CONTENT);
     }
 
     @Test
@@ -126,9 +128,9 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller2 = createUser("Seller2", "s2@test.com", Role.SELLER);
         Product product = createProduct(seller1, "Notebook", BigDecimal.valueOf(5000), 10);
 
-        mockMvc.perform(delete("/api/products/" + product.getId())
-                .header("Authorization", tokenFor(seller2)))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = delete("/api/products/" + product.getId(), authHeaders(seller2));
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -137,7 +139,8 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         User seller = createUser("Seller", "seller@test.com", Role.SELLER);
         Product product = createProduct(seller, "Temp", BigDecimal.valueOf(100), 5);
 
-        mockMvc.perform(delete("/api/products/" + product.getId()))
-            .andExpect(status().isForbidden());
+        ResponseEntity<String> response = delete("/api/products/" + product.getId(), jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(FORBIDDEN);
     }
 }

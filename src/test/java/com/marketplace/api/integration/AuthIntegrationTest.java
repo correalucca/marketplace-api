@@ -1,47 +1,42 @@
 package com.marketplace.api.integration;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.marketplace.api.entity.enums.Role;
 
-/**
- * Testes de integração para autenticação (endpoints públicos /api/auth/*).
- * <p>
- * Cenários: register (sucesso, email duplicado), login (credenciais válidas, senha errada).
- * Não exige token JWT — esses endpoints são {@code .permitAll()} no SecurityConfig.
- */
 class AuthIntegrationTest extends AbstractIntegrationTest {
-
     @Test
     @DisplayName("POST /api/auth/register → 201 + token para SELLER")
     void shouldRegisterSeller() throws Exception {
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"name":"Seller","email":"seller@test.com","password":"123456","role":"SELLER"}
-                    """))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.token").isNotEmpty())
-            .andExpect(jsonPath("$.role").value("SELLER"));
+        ResponseEntity<String> response = post("/api/auth/register", """
+            {"name":"Seller","email":"seller@test.com","password":"123456","role":"SELLER"}
+            """, jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("token").asText()).isNotEmpty();
+        assertThat(body.get("role").asText()).isEqualTo("SELLER");
     }
 
     @Test
     @DisplayName("POST /api/auth/register → 201 + token para BUYER")
     void shouldRegisterBuyer() throws Exception {
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"name":"Buyer","email":"buyer@test.com","password":"123456","role":"BUYER"}
-                    """))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.token").isNotEmpty())
-            .andExpect(jsonPath("$.role").value("BUYER"));
+        ResponseEntity<String> response = post("/api/auth/register", """
+            {"name":"Buyer","email":"buyer@test.com","password":"123456","role":"BUYER"}
+            """, jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("token").asText()).isNotEmpty();
+        assertThat(body.get("role").asText()).isEqualTo("BUYER");
     }
 
     @Test
@@ -50,13 +45,9 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
         String json = """
             {"name":"User","email":"dup@test.com","password":"123456","role":"BUYER"}
             """;
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON).content(json))
-            .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON).content(json))
-            .andExpect(status().isUnprocessableEntity());
+        assertThat(post("/api/auth/register", json, jsonHeaders()).getStatusCode()).isEqualTo(CREATED);
+        assertThat(post("/api/auth/register", json, jsonHeaders()).getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 
     @Test
@@ -64,13 +55,13 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     void shouldLogin() throws Exception {
         createUser("User", "user@test.com", Role.BUYER);
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"email":"user@test.com","password":"123456"}
-                    """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.token").isNotEmpty());
+        ResponseEntity<String> response = post("/api/auth/login", """
+            {"email":"user@test.com","password":"123456"}
+            """, jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("token").asText()).isNotEmpty();
     }
 
     @Test
@@ -78,11 +69,10 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     void shouldRejectWrongPassword() throws Exception {
         createUser("User", "user@test.com", Role.BUYER);
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"email":"user@test.com","password":"wrong"}
-                    """))
-            .andExpect(status().isUnprocessableEntity());
+        ResponseEntity<String> response = post("/api/auth/login", """
+            {"email":"user@test.com","password":"wrong"}
+            """, jsonHeaders());
+
+        assertThat(response.getStatusCode()).isEqualTo(UNPROCESSABLE_ENTITY);
     }
 }
