@@ -2,6 +2,7 @@ package com.marketplace.api.controller;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,11 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.marketplace.api.dto.request.ProductRequest;
 import com.marketplace.api.dto.response.ProductResponse;
 import com.marketplace.api.service.ProductService;
-import com.marketplace.api.service.SecurityService;
+import com.marketplace.api.service.security.SecurityService;
 
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
@@ -38,6 +40,7 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<ProductResponse> create(
             @Valid @RequestBody ProductRequest request) {
+        log.debug("POST /api/products - name: {}", request.getName());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(productService.create(request, securityService.getAuthenticatedUser()));
     }
@@ -45,6 +48,7 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<ProductResponse>> findAll(
             @RequestParam(required = false) String name) {
+        log.debug("GET /api/products - name: {}", name);
         if (name != null && !name.isBlank()) {
             return ResponseEntity.ok(productService.findByName(name));
         }
@@ -53,6 +57,7 @@ public class ProductController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> findById(@PathVariable Long id) {
+        log.debug("GET /api/products/{}", id);
         return ResponseEntity.ok(productService.findById(id));
     }
 
@@ -60,11 +65,13 @@ public class ProductController {
     public ResponseEntity<ProductResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody ProductRequest request) {
+        log.debug("PUT /api/products/{}", id);
         return ResponseEntity.ok(productService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        log.debug("DELETE /api/products/{}", id);
         productService.delete(id);
         return ResponseEntity.noContent().build();
     }

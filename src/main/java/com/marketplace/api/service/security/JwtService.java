@@ -1,4 +1,4 @@
-package com.marketplace.api.service;
+package com.marketplace.api.service.security;
 
 import java.security.Key;
 import java.util.Date;
@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,18 +16,16 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
+@Slf4j
 @Service
 public class JwtService {
-
     @Value("${api.security.jwt.secret}")
     private String secretKey;
 
     @Value("${api.security.jwt.access-expiration}")
     private long accessExpiration;
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
+    public String extractEmail(String token) { return extractClaim(token, Claims::getSubject); }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         Claims claims = extractAllClaims(token);
@@ -34,6 +33,7 @@ public class JwtService {
     }
 
     public String generateAccessToken(String email) {
+        log.debug("Generating access token for email: {}", email);
         return generateToken(new HashMap<>(), email, accessExpiration);
     }
 
@@ -48,8 +48,17 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, String email) {
-        String extractedEmail = extractEmail(token);
-        return extractedEmail.equals(email) && !isTokenExpired(token);
+        try {
+            String extractedEmail = extractEmail(token);
+            boolean valid = extractedEmail.equals(email) && !isTokenExpired(token);
+            if (!valid) {
+                log.warn("Invalid token for email: {}", email);
+            }
+            return valid;
+        } catch (Exception e) {
+            log.error("Error validating token for email: {}", email, e);
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {

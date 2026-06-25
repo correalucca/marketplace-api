@@ -1,15 +1,4 @@
-package com.marketplace.api.service;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+package com.marketplace.api.service.commission;
 
 import com.marketplace.api.entity.Commission;
 import com.marketplace.api.entity.Order;
@@ -17,7 +6,19 @@ import com.marketplace.api.entity.OrderItem;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.repository.CommissionRepository;
 import com.marketplace.api.service.factory.CommissionStrategyFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Slf4j
 @Service
 public class CommissionServiceImpl implements CommissionService {
     private final CommissionRepository commissionRepository;
@@ -35,6 +36,7 @@ public class CommissionServiceImpl implements CommissionService {
 
     @Transactional
     public void saveCommissions(Order order) {
+        log.info("Saving commissions for orderId={} with type={}", order.getId(), commissionType);
         Map<User, List<OrderItem>> itemsBySeller = order.getItems().stream()
                 .collect(Collectors.groupingBy(item -> item.getProduct().getSeller()));
 
@@ -62,10 +64,13 @@ public class CommissionServiceImpl implements CommissionService {
                     .build();
 
             commissionRepository.save(commission);
+            log.debug("Commission saved: sellerId={}, amount={}", seller.getId(), proportionalAmount);
         }
+        log.info("Commissions saved for orderId={}", order.getId());
     }
 
     public List<Commission> findBySeller(User seller) {
+        log.debug("Finding commissions for sellerId={}", seller.getId());
         return commissionRepository.findBySeller(seller);
     }
 }

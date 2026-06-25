@@ -2,6 +2,8 @@ package com.marketplace.api.service;
 
 import java.util.UUID;
 
+import com.marketplace.api.service.commission.CommissionService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +17,12 @@ import com.marketplace.api.entity.enums.OrderStatus;
 import com.marketplace.api.entity.enums.PaymentStatus;
 import com.marketplace.api.exception.PaymentProcessingException;
 import com.marketplace.api.exception.ResourceNotFoundException;
-import com.marketplace.api.exception.ResourceNotFoundException;
 import com.marketplace.api.mapper.PaymentMapper;
 import com.marketplace.api.repository.OrderRepository;
 import com.marketplace.api.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@Slf4j
 @Service
 public class PaymentService {
 
@@ -39,12 +41,19 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse processPayment(PaymentRequest request, User currentUser) {
+        log.info("Processing payment for orderId={}, amount={}, method={}",
+                request.getOrderId(), request.getAmount(), request.getPaymentMethod());
+
         Order order = orderRepository.findById(request.getOrderId())
-                .orElseThrow(() -> new ResourceNotFoundException("Order", request.getOrderId()));
+                .orElseThrow(() -> {
+                    log.warn("Order not found for payment: orderId={}", request.getOrderId());
+                    return new ResourceNotFoundException("Order", request.getOrderId());
+                });
 
         OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only pay for your own orders");
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Payment rejected - order is cancelled: orderId={}", request.getOrderId());
             throw new PaymentProcessingException("Cannot process payment for cancelled order");
         }
 
@@ -63,17 +72,27 @@ public class PaymentService {
 
         commissionService.saveCommissions(order);
 
+        log.info("Payment processed successfully: transactionId={}, orderId={}, status={}",
+                payment.getTransactionId(), request.getOrderId(), payment.getStatus());
+
         return paymentMapper.toResponse(payment);
     }
 
     public PaymentResponse findByOrderId(Long orderId, User currentUser) {
+        log.debug("Finding payment for orderId={}", orderId);
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+                .orElseThrow(() -> {
+                    log.warn("Order not found when fetching payment: orderId={}", orderId);
+                    return new ResourceNotFoundException("Order", orderId);
+                });
 
         OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view payments for your own orders");
 
         Payment payment = paymentRepository.findByOrder(order)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment for order", orderId));
+                .orElseThrow(() -> {
+                    log.warn("Payment not found for orderId={}", orderId);
+                    return new ResourceNotFoundException("Payment for order", orderId);
+                });
         return paymentMapper.toResponse(payment);
     }
 }

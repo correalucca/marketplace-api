@@ -1,5 +1,6 @@
 package com.marketplace.api.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,11 +12,12 @@ import com.marketplace.api.dto.request.AuthRequest;
 import com.marketplace.api.dto.request.RefreshTokenRequest;
 import com.marketplace.api.dto.request.RegisterRequest;
 import com.marketplace.api.dto.response.AuthResponse;
-import com.marketplace.api.service.AuthService;
+import com.marketplace.api.service.auth.AuthService;
 
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -28,16 +30,19 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        log.debug("POST /api/auth/register - email: {}", request.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
+        log.debug("POST /api/auth/login - email: {}", request.getEmail());
         return ResponseEntity.ok(authService.authenticate(request));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        log.debug("POST /api/auth/refresh");
         return ResponseEntity.ok(authService.refresh(request));
     }
 }

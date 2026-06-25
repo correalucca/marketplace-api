@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.marketplace.api.service.security.SecurityService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ import com.marketplace.api.repository.ProductRepository;
 import com.marketplace.api.service.factory.ShippingStrategyFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@Slf4j
 @Service
 public class OrderService {
 
@@ -48,6 +51,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(OrderRequest request, User buyer) {
+        log.info("Creating order for buyerId={} with {} items", buyer.getId(), request.getItems().size());
         securityService.requireRole(Role.BUYER);
 
         Order order = new Order();
@@ -59,7 +63,10 @@ public class OrderService {
 
         for (OrderItemRequest itemReq : request.getItems()) {
             Product product = productRepository.findById(itemReq.getProductId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Product", itemReq.getProductId()));
+                    .orElseThrow(() -> {
+                        log.warn("Product not found for order item: productId={}", itemReq.getProductId());
+                        return new ResourceNotFoundException("Product", itemReq.getProductId());
+                    });
 
             inventoryService.reserveStock(itemReq);
 
@@ -84,17 +91,23 @@ public class OrderService {
         order.setTotalAmount(subtotal.add(shippingAmount));
 
         order = orderRepository.save(order);
+        log.info("Order created: id={}, buyerId={}, total={}, status={}", order.getId(), buyer.getId(), order.getTotalAmount(), order.getStatus());
         return orderMapper.toResponse(order);
     }
 
     public OrderResponse findById(Long id, User currentUser) {
+        log.debug("Finding order by id: {}", id);
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", id));
+                .orElseThrow(() -> {
+                    log.warn("Order not found: id={}", id);
+                    return new ResourceNotFoundException("Order", id);
+                });
         OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view your own orders");
         return orderMapper.toResponse(order);
     }
 
     public List<OrderResponse> findByBuyer(User buyer) {
+        log.debug("Finding orders for buyerId={}", buyer.getId());
         return orderRepository.findByBuyer(buyer).stream()
                 .map(orderMapper::toResponse)
                 .collect(Collectors.toList());
@@ -102,12 +115,17 @@ public class OrderService {
 
     @Transactional
     public void cancel(Long id, User currentUser) {
+        log.info("Cancelling order id={} by userId={}", id, currentUser.getId());
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", id));
+                .orElseThrow(() -> {
+                    log.warn("Order not found for cancellation: id={}", id);
+                    return new ResourceNotFoundException("Order", id);
+                });
 
         OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only cancel your own orders");
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
+            log.warn("Cannot cancel delivered order id={}", id);
             throw new BusinessException("Cannot cancel a delivered order");
         }
 
@@ -118,5 +136,6 @@ public class OrderService {
         }
 
         orderRepository.save(order);
+        log.info("Order cancelled: id={}", id);
     }
 }

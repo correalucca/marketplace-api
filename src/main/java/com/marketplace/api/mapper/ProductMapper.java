@@ -1,11 +1,13 @@
 package com.marketplace.api.mapper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import com.marketplace.api.dto.request.ProductRequest;
 import com.marketplace.api.dto.response.ProductResponse;
 import com.marketplace.api.entity.Product;
 
+@Slf4j
 @Component
 public class ProductMapper {
 
@@ -24,6 +26,7 @@ public class ProductMapper {
     }
 
     public Product toEntity(ProductRequest request) {
+        log.debug("Mapping ProductRequest to entity: {}", request.getName());
         return Product.builder()
                 .name(request.getName())
                 .description(request.getDescription())

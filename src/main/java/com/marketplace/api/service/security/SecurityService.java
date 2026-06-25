@@ -1,4 +1,4 @@
-package com.marketplace.api.service;
+package com.marketplace.api.service.security;
 
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;

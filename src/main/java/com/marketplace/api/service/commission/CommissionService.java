@@ -1,4 +1,4 @@
-package com.marketplace.api.service;
+package com.marketplace.api.service.commission;
 
 import java.util.List;
 
