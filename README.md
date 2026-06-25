@@ -507,7 +507,10 @@ src/main/java/com/marketplace/api/
 ├── mapper/                          # Entity <-> DTO mappers
 ├── repository/                      # Spring Data JPA repositories (7)
 └── service/                         # Business services + factories + strategies
+    ├── auth/                        # AuthService
+    ├── commission/                  # CommissionService, CommissionServiceImpl
     ├── factory/                     # ShippingStrategyFactory, CommissionStrategyFactory
+    ├── security/                    # JwtService, SecurityService, RefreshTokenService, CustomUserDetailsService
     └── strategy/                    # ShippingStrategy (4), CommissionStrategy (2)
 ```
 
@@ -619,13 +622,13 @@ Request e Response são classes separadas das entidades JPA. Mappers fazem a con
 
 ## Testes
 
-O projeto possui **~78 testes** distribuídos em **15 classes**:
+O projeto possui **292 testes** distribuídos em **33 classes**:
 
 | Tipo | Tecnologia | Quantidade |
 |---|---|---|
-| Unitário (Mockito) | Serviços mockados | ~45 |
-| Controller (`@WebMvcTest`) | Camada HTTP | 4 |
-| Integração (`@SpringBootTest`) | Fluxo completo com H2 | ~28 |
+| Unitário (Mockito) | Services, strategies, mappers, entities, exceptions | ~184 |
+| Controller (`@WebMvcTest`) | Controllers com MockMvc | ~54 |
+| Integração (`@SpringBootTest`) | Fluxo completo HTTP com TestRestTemplate + H2 | ~54 |
 
 ```bash
 # Executar todos os testes
