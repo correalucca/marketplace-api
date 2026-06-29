@@ -26,12 +26,14 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final SecurityService securityService;
+    private final OwnershipValidator ownershipValidator;
 
     @Autowired
-    public ProductService(ProductRepository productRepository, ProductMapper productMapper, SecurityService securityService) {
+    public ProductService(ProductRepository productRepository, ProductMapper productMapper, SecurityService securityService, OwnershipValidator ownershipValidator) {
         this.productRepository = productRepository;
         this.productMapper = productMapper;
         this.securityService = securityService;
+        this.ownershipValidator = ownershipValidator;
     }
 
     @Transactional
@@ -81,7 +83,7 @@ public class ProductService {
                 });
 
         User current = securityService.getAuthenticatedUser();
-        OwnershipValidator.validateOwnership(product.getSeller().getId(), current, "You can only update your own products");
+        ownershipValidator.validateOwnership(product.getSeller().getId(), current, "You can only update your own products");
 
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -104,7 +106,7 @@ public class ProductService {
                 });
 
         User current = securityService.getAuthenticatedUser();
-        OwnershipValidator.validateOwnership(product.getSeller().getId(), current, "You can only delete your own products");
+        ownershipValidator.validateOwnership(product.getSeller().getId(), current, "You can only delete your own products");
 
         productRepository.delete(product);
         log.info("Product deleted: id={}", id);

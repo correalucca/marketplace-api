@@ -30,13 +30,15 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentMapper paymentMapper;
     private final CommissionService commissionService;
+    private final OwnershipValidator ownershipValidator;
 
     @Autowired
-    public PaymentService(PaymentRepository paymentRepository, OrderRepository orderRepository, PaymentMapper paymentMapper, CommissionService commissionService) {
+    public PaymentService(PaymentRepository paymentRepository, OrderRepository orderRepository, PaymentMapper paymentMapper, CommissionService commissionService, OwnershipValidator ownershipValidator) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.paymentMapper = paymentMapper;
         this.commissionService = commissionService;
+        this.ownershipValidator = ownershipValidator;
     }
 
     @Transactional
@@ -50,7 +52,7 @@ public class PaymentService {
                     return new ResourceNotFoundException("Order", request.getOrderId());
                 });
 
-        OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only pay for your own orders");
+        ownershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only pay for your own orders");
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
             log.warn("Payment rejected - order is cancelled: orderId={}", request.getOrderId());
@@ -86,7 +88,7 @@ public class PaymentService {
                     return new ResourceNotFoundException("Order", orderId);
                 });
 
-        OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view payments for your own orders");
+        ownershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view payments for your own orders");
 
         Payment payment = paymentRepository.findByOrder(order)
                 .orElseThrow(() -> {

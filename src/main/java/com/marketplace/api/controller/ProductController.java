@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.marketplace.api.config.resolver.CurrentUser;
 import com.marketplace.api.dto.request.ProductRequest;
 import com.marketplace.api.dto.response.ProductResponse;
+import com.marketplace.api.entity.User;
 import com.marketplace.api.service.ProductService;
-import com.marketplace.api.service.security.SecurityService;
 
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 @RestController
@@ -29,20 +29,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class ProductController {
 
     private final ProductService productService;
-    private final SecurityService securityService;
 
-    @Autowired
-    public ProductController(ProductService productService, SecurityService securityService) {
+    public ProductController(ProductService productService) {
         this.productService = productService;
-        this.securityService = securityService;
     }
 
     @PostMapping
     public ResponseEntity<ProductResponse> create(
-            @Valid @RequestBody ProductRequest request) {
+            @Valid @RequestBody ProductRequest request,
+            @CurrentUser User user) {
         log.debug("POST /api/products - name: {}", request.getName());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(productService.create(request, securityService.getAuthenticatedUser()));
+                .body(productService.create(request, user));
     }
 
     @GetMapping

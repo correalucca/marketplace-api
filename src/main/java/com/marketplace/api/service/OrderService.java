@@ -38,15 +38,17 @@ public class OrderService {
     private final ShippingStrategyFactory shippingStrategyFactory;
     private final OrderMapper orderMapper;
     private final SecurityService securityService;
+    private final OwnershipValidator ownershipValidator;
 
     @Autowired
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, InventoryService inventoryService, ShippingStrategyFactory shippingStrategyFactory, OrderMapper orderMapper, SecurityService securityService) {
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, InventoryService inventoryService, ShippingStrategyFactory shippingStrategyFactory, OrderMapper orderMapper, SecurityService securityService, OwnershipValidator ownershipValidator) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.inventoryService = inventoryService;
         this.shippingStrategyFactory = shippingStrategyFactory;
         this.orderMapper = orderMapper;
         this.securityService = securityService;
+        this.ownershipValidator = ownershipValidator;
     }
 
     @Transactional
@@ -102,7 +104,7 @@ public class OrderService {
                     log.warn("Order not found: id={}", id);
                     return new ResourceNotFoundException("Order", id);
                 });
-        OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view your own orders");
+        ownershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only view your own orders");
         return orderMapper.toResponse(order);
     }
 
@@ -122,7 +124,7 @@ public class OrderService {
                     return new ResourceNotFoundException("Order", id);
                 });
 
-        OwnershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only cancel your own orders");
+        ownershipValidator.validateOwnership(order.getBuyer().getId(), currentUser, "You can only cancel your own orders");
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             log.warn("Cannot cancel delivered order id={}", id);

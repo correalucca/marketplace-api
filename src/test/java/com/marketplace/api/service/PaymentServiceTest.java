@@ -26,6 +26,7 @@ import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.OrderStatus;
 import com.marketplace.api.entity.enums.PaymentStatus;
 import com.marketplace.api.entity.enums.Role;
+import com.marketplace.api.common.OwnershipValidator;
 import com.marketplace.api.exception.BusinessException;
 import com.marketplace.api.exception.PaymentProcessingException;
 import com.marketplace.api.exception.ResourceNotFoundException;
@@ -47,6 +48,9 @@ class PaymentServiceTest {
 
     @Mock
     private CommissionService commissionService;
+
+    @Mock
+    private OwnershipValidator ownershipValidator;
 
     @InjectMocks
     private PaymentService paymentService;

@@ -26,6 +26,7 @@ import com.marketplace.api.entity.Product;
 import com.marketplace.api.entity.User;
 import com.marketplace.api.entity.enums.Role;
 import com.marketplace.api.exception.BusinessException;
+import com.marketplace.api.common.OwnershipValidator;
 import com.marketplace.api.exception.ResourceNotFoundException;
 import com.marketplace.api.mapper.ProductMapper;
 import com.marketplace.api.repository.ProductRepository;
@@ -41,6 +42,9 @@ class ProductServiceTest {
 
     @Mock
     private SecurityService securityService;
+
+    @Mock
+    private OwnershipValidator ownershipValidator;
 
     @InjectMocks
     private ProductService productService;

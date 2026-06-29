@@ -37,6 +37,7 @@ import com.marketplace.api.exception.ResourceNotFoundException;
 import com.marketplace.api.mapper.OrderMapper;
 import com.marketplace.api.repository.OrderRepository;
 import com.marketplace.api.repository.ProductRepository;
+import com.marketplace.api.common.OwnershipValidator;
 import com.marketplace.api.service.factory.ShippingStrategyFactory;
 import com.marketplace.api.service.strategy.ShippingStrategy;
 
@@ -63,6 +64,9 @@ class OrderServiceTest {
 
     @Mock
     private SecurityService securityService;
+
+    @Mock
+    private OwnershipValidator ownershipValidator;
 
     @InjectMocks
     private OrderService orderService;
