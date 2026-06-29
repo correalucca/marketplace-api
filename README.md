@@ -16,6 +16,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 17"/>
+  <img src="https://img.shields.io/badge/Kotlin-2.1-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.1"/>
   <img src="https://img.shields.io/badge/Spring_Boot-3.5.15-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Boot 3.5"/>
   <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL 8.0"/>
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
@@ -26,7 +27,7 @@
 
 ## Sobre o Projeto
 
-API backend para um marketplace onde **vendedores** cadastram produtos, **compradores** criam pedidos e realizam pagamentos, e as **comissões** são distribuídas proporcionalmente entre os vendedores de cada pedido.
+API backend para um marketplace onde **vendedores** cadastram produtos, **compradores** criam pedidos e realizam pagamentos, e as **comissões** são distribuídas proporcionalmente entre os vendedores de cada pedido. O projeto integra **Kotlin 2.1** e **Java 17** no mesmo módulo Maven, aplica princípios **SOLID** e possui cobertura de testes unitários e de integração.
 
 **Funcionalidades principais:**
 
@@ -39,7 +40,7 @@ API backend para um marketplace onde **vendedores** cadastram produtos, **compra
 - Três perfis de acesso: BUYER, SELLER, ADMIN
 - Lock otimista com retry automático para concorrência de estoque
 
-**Stack:** Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, MySQL 8.0 (Docker), H2 (dev/test), JWT, Swagger.
+**Stack:** Java 17, Kotlin 2.1, Spring Boot 3.5, Spring Security, Spring Data JPA, MySQL 8.0 (Docker), H2 (dev/test), JWT.
 
 ---
 
@@ -48,6 +49,7 @@ API backend para um marketplace onde **vendedores** cadastram produtos, **compra
 | Tecnologia | Versão | Finalidade |
 |---|---|---|
 | Java | 17 | Linguagem |
+| Kotlin | 2.1 | Linguagem (coexistente no mesmo módulo) |
 | Spring Boot | 3.5.15 | Framework |
 | Spring Security | 6.x | Autenticação e autorização |
 | Spring Data JPA / Hibernate | — | ORM |
@@ -55,7 +57,7 @@ API backend para um marketplace onde **vendedores** cadastram produtos, **compra
 | H2 Database | 2.x | Banco dev/test |
 | JJWT | 0.12.6 | Tokens JWT |
 | Lombok | — | Boilerplate |
-| SpringDoc OpenAPI | 2.8.16 | Swagger UI |
+| Jackson Module Kotlin | — | Serialização Kotlin/JSON |
 | Maven Wrapper | — | Build |
 
 ---
@@ -117,8 +119,6 @@ mvnw.cmd spring-boot:run
 ```
 
 Acesse: [`http://localhost:8080`](http://localhost:8080)
-
-Swagger UI: [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html)
 
 ### Perfil dev (H2 com console)
 
@@ -454,6 +454,32 @@ curl http://localhost:8080/api/payments/order/1 \
 
 ---
 
+### Relatório de Vendas — `/api/reports`
+
+#### `GET /api/reports/seller/{sellerId}`
+Retorna o resumo de vendas de um vendedor. Público.
+
+```json
+// Response 200
+{
+  "sellerId": 1,
+  "sellerName": "Maria Vendedora",
+  "sellerEmail": "maria@test.com",
+  "totalProducts": 2,
+  "totalOrders": 3,
+  "totalSalesAmount": 1500.00,
+  "averageTicket": 750.00
+}
+```
+
+```bash
+curl http://localhost:8080/api/reports/seller/1
+```
+
+> Endpoint implementado em **Kotlin** consumindo serviços e repositórios Java existentes.
+
+---
+
 ### Tratamento de Erros
 
 Todas as exceções retornam um JSON padronizado:
@@ -496,22 +522,35 @@ Erro de validação (`400`):
 ## Estrutura do Projeto
 
 ```
-src/main/java/com/marketplace/api/
-├── ApiApplication.java              # Main class (@EnableRetry, @EnableScheduling)
-├── common/                          # OwnershipValidator
-├── config/                          # Security, JWT filter, CORS, Swagger
-├── controller/                      # REST controllers (4)
-├── dto/                             # Request/Response DTOs
-├── entity/                          # JPA entities (7) + enums (4)
-├── exception/                       # Custom exceptions (4) + GlobalExceptionHandler
-├── mapper/                          # Entity <-> DTO mappers
-├── repository/                      # Spring Data JPA repositories (7)
-└── service/                         # Business services + factories + strategies
-    ├── auth/                        # AuthService
-    ├── commission/                  # CommissionService, CommissionServiceImpl
-    ├── factory/                     # ShippingStrategyFactory, CommissionStrategyFactory
-    ├── security/                    # JwtService, SecurityService, RefreshTokenService, CustomUserDetailsService
-    └── strategy/                    # ShippingStrategy (4), CommissionStrategy (2)
+src/
+├── main/
+│   ├── java/com/marketplace/api/
+│   │   ├── ApiApplication.java              # Main class (@EnableRetry, @EnableScheduling)
+│   │   ├── common/                          # OwnershipValidator (interface + impl)
+│   │   ├── config/                          # Security, JWT filter, CORS, WebConfig
+│   │   │   └── resolver/                    # @CurrentUser annotation + resolver
+│   │   ├── controller/                      # REST controllers (4)
+│   │   ├── dto/                             # Request/Response DTOs
+│   │   ├── entity/                          # JPA entities (7) + enums (4)
+│   │   ├── exception/                       # Custom exceptions (4) + GlobalExceptionHandler
+│   │   ├── mapper/                          # Entity <-> DTO mappers
+│   │   ├── repository/                      # Spring Data JPA repositories (7)
+│   │   └── service/                         # Business services + factories + strategies
+│   │       ├── auth/                        # AuthService
+│   │       ├── commission/                  # CommissionService, CommissionServiceImpl
+│   │       ├── factory/                     # ShippingStrategyFactory, CommissionStrategyFactory
+│   │       ├── security/                    # JwtService, SecurityService, RefreshTokenService
+│   │       └── strategy/                    # ShippingStrategy (4), CommissionStrategy (2)
+│   └── kotlin/com/marketplace/api/          # Kotlin sources (mesmo módulo)
+│       ├── controller/                      # ReportController
+│       ├── dto/response/                    # SellerReportResponse
+│       └── service/                         # ReportService + ReportServiceImpl
+└── test/
+    ├── java/com/marketplace/api/            # Testes Java (Mockito + @WebMvcTest)
+    └── kotlin/com/marketplace/api/          # Testes Kotlin
+        ├── controller/                      # ReportControllerTest
+        ├── integration/                     # ReportIntegrationTest + AbstractReportIntegrationTest
+        └── service/                         # ReportServiceImplTest
 ```
 
 ---
@@ -606,8 +645,11 @@ Product (1) ----< OrderItem
 ### DTO
 Request e Response são classes separadas das entidades JPA. Mappers fazem a conversão.
 
-### Ownership Validation
-`OwnershipValidator` compara o ID do recurso com o ID do usuário autenticado. ADMIN tem bypass automático.
+### Ownership Validation (DIP)
+`OwnershipValidator` é uma **interface** — controllers dependem da abstração, não da implementação concreta. ADMIN tem bypass automático. Permite mockar o validator em testes sem acoplar a lógica real.
+
+### @CurrentUser Argument Resolver
+Controllers recebem o usuário autenticado via `@CurrentUser User user` no parâmetro do método, eliminando a dependência direta de `SecurityService` na camada de apresentação e facilitando testes com `@WebMvcTest`.
 
 ### Optimistic Locking + Retry
 `Product` usa `@Version`. `InventoryService` anota `reserveStock()` e `releaseStock()` com `@Retryable` (até 3 tentativas, backoff exponencial) para concorrência.
@@ -622,12 +664,12 @@ Request e Response são classes separadas das entidades JPA. Mappers fazem a con
 
 ## Testes
 
-O projeto possui **292 testes** distribuídos em **33 classes**:
+O projeto possui **~308 testes** distribuídos em **37 classes** entre Java e Kotlin:
 
 | Tipo | Tecnologia | Quantidade |
 |---|---|---|
-| Unitário (Mockito) | Services, strategies, mappers, entities, exceptions | ~184 |
-| Controller (`@WebMvcTest`) | Controllers com MockMvc | ~54 |
+| Unitário (Java + Kotlin) | Services, strategies, mappers, entities, exceptions | ~194 |
+| Controller (`@WebMvcTest`) | Controllers com MockMvc | ~60 |
 | Integração (`@SpringBootTest`) | Fluxo completo HTTP com TestRestTemplate + H2 | ~54 |
 
 ```bash
@@ -635,13 +677,16 @@ O projeto possui **292 testes** distribuídos em **33 classes**:
 mvnw.cmd test
 
 # Classe específica
-mvnw.cmd test -Dtest=OrderServiceTest
+mvnw.cmd test -Dtest=ReportServiceImplTest
 
 # Método específico
 mvnw.cmd test -Dtest=OrderServiceTest#shouldCreateOrderSuccessfully
 
 # Pacote
 mvnw.cmd test "-Dtest=com.marketplace.api.service.*"
+
+# Apenas testes Kotlin
+mvnw.cmd test "-Dtest=com.marketplace.api.*TestKt"
 ```
 
 ---
@@ -672,5 +717,4 @@ chore: build, config, dependencies
 ## Licença
 
 Distribuído sob licença MIT. Veja [LICENSE](LICENSE) para mais informações.
-docs: add README with API documentation and Docker Compose for MySQL 8.0
 ```
